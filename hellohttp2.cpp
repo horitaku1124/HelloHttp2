@@ -6,7 +6,6 @@
 #ifdef WIN32
 #include <winsock2.h>
 #include <windows.h>
-#pragma warning(disable:4996)
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -37,14 +36,11 @@ void close_socket(SOCKET socket);
 int main(int argc, char **argv)
 {
 
-
 	//------------------------------------------------------------
 	// 接続先ホスト名.
 	// HTTP2に対応したホストを指定します.
 	//------------------------------------------------------------
 	std::string host = "nghttp2.org";
-
-
 
 
 	//------------------------------------------------------------
@@ -86,7 +82,7 @@ int main(int argc, char **argv)
 	// これからHTTP2通信を始めることを伝える.
 	//------------------------------------------------------------
 	std::string pri = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
-	int r = (int)::send(_socket, pri.c_str(), pri.length(), NULL);
+	int r = (int)::send(_socket, pri.c_str(), pri.length(), 0);
 
 
 	//------------------------------------------------------------
@@ -163,7 +159,7 @@ int main(int argc, char **argv)
 	//------------------------------------------------------------
 	const char settingframe[BINARY_FRAME_LENGTH] = { 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-	r = (int)::send(_socket, settingframe, BINARY_FRAME_LENGTH, NULL);
+	r = (int)::send(_socket, settingframe, BINARY_FRAME_LENGTH, 0);
 	if (r == -1){
 		error = get_error();
 		::shutdown(_socket, SD_BOTH);
@@ -178,7 +174,7 @@ int main(int argc, char **argv)
 	char buf[BUF_SIZE] = { 0 };
 	char* p = buf;
 
-	r = (int)::recv(_socket, p, READ_BUF_SIZE, NULL);
+	r = (int)::recv(_socket, p, READ_BUF_SIZE, 0);
 	if (r == -1){
 		error = get_error();
 		::shutdown(_socket, SD_BOTH);
@@ -198,7 +194,7 @@ int main(int argc, char **argv)
 	//------------------------------------------------------------
 	const char settingframeAck[BINARY_FRAME_LENGTH] = { 0x00, 0x00, 0x00, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
-	r = (int)::send(_socket, settingframeAck, BINARY_FRAME_LENGTH, NULL);
+	r = (int)::send(_socket, settingframeAck, BINARY_FRAME_LENGTH, 0);
 	if (r == -1){
 		error = get_error();
 		::shutdown(_socket, SD_BOTH);
@@ -261,7 +257,7 @@ int main(int argc, char **argv)
 		0x0b, 0x6e, 0x67, 0x68, 0x74, 0x74, 0x70, 0x32, 0x2e, 0x6f, 0x72, 0x67   // 11 nghttp2.org
 	};
 
-	r = (int)::send(_socket, headersframe, 69, NULL);
+	r = (int)::send(_socket, headersframe, 69, 0);
 	if (r == -1){
 		error = get_error();
 		::shutdown(_socket, SD_BOTH);
@@ -282,7 +278,7 @@ int main(int argc, char **argv)
 		memset(buf, 0x00, BINARY_FRAME_LENGTH);
 		p = buf;
 
-		r = (int)::recv(_socket, p, BINARY_FRAME_LENGTH, NULL);
+		r = (int)::recv(_socket, p, BINARY_FRAME_LENGTH, 0);
 		if (r == -1){
 			error = get_error();
 			::shutdown(_socket, SD_BOTH);
@@ -303,7 +299,7 @@ int main(int argc, char **argv)
 			memcpy(&frame_type, p, 1);
 			if (frame_type != 1){
 
-				r = (int)::recv(_socket, p, payload_length, NULL);
+				r = (int)::recv(_socket, p, payload_length, 0);
 				if (r == -1){
 					error = get_error();
 					::shutdown(_socket, SD_BOTH);
@@ -320,7 +316,7 @@ int main(int argc, char **argv)
 	// 次にHEADERSフレームのpayloadを受信する。
 	memset(buf, 0x00, payload_length);
 	p = buf;
-	r = (int)::recv(_socket, p, payload_length, NULL);
+	r = (int)::recv(_socket, p, payload_length, 0);
 	if (r == -1){
 		error = get_error();
 		::shutdown(_socket, SD_BOTH);
@@ -336,7 +332,7 @@ int main(int argc, char **argv)
 	// まずはヘッダフレームを受信してpayloadのlengthを取得する。
 	memset(buf, 0x00, BINARY_FRAME_LENGTH);
 	p = buf;
-	r = (int)::recv(_socket, p, BINARY_FRAME_LENGTH, NULL);
+	r = (int)::recv(_socket, p, BINARY_FRAME_LENGTH, 0);
 	to_framedata3byte(p, payload_length);
 
 	// 次にpayloadを受信する。
@@ -345,7 +341,7 @@ int main(int argc, char **argv)
 		memset(buf, 0x00, BUF_SIZE);
 		p = buf;
 
-		r = (int)::recv(_socket, p, READ_BUF_SIZE, NULL);
+		r = (int)::recv(_socket, p, READ_BUF_SIZE, 0);
 		if (r == -1){
 			error = get_error();
 			::shutdown(_socket, SD_BOTH);
@@ -367,7 +363,7 @@ int main(int argc, char **argv)
 	//------------------------------------------------------------
 	const char goawayframe[17] = { 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00 };
 
-	r = (int)::send(_socket, goawayframe, 17, NULL);
+	r = (int)::send(_socket, goawayframe, 17, 0);
 	if (r == -1){
 		error = get_error();
 		::shutdown(_socket, SD_BOTH);
