@@ -35,8 +35,9 @@ void close_socket(SOCKET socket);
 
 int send_data(SOCKET _socket, const char* data, size_t data_size);
 int recv_data(SOCKET _socket, char* buffer, size_t buffer_limit);
-void http2_main(SOCKET _socket);
+void http2_main(SOCKET _socket, std::string hostname, std::string query);
 
+using std::string;
 int main(int argc, char **argv)
 {
 
@@ -44,7 +45,7 @@ int main(int argc, char **argv)
     // 接続先ホスト名.
     // HTTP2に対応したホストを指定します.
     //------------------------------------------------------------
-    std::string host = "nghttp2.org";
+    string host = "nghttp2.org";
 
     //------------------------------------------------------------
     // TCPの準備.
@@ -78,8 +79,8 @@ int main(int argc, char **argv)
     }
 
     try {
-        http2_main(_socket);
-    } catch(std::string e) {
+        http2_main(_socket, host, string("/"));
+    } catch(string e) {
         fprintf(stderr, "Error => %s", e.c_str());
         ::shutdown(_socket, SD_BOTH);
         close_socket(_socket);
@@ -115,7 +116,7 @@ int send_data(SOCKET socket, const char* data, size_t data_size) {
     int r = (int)::send(socket, data, data_size, 0);
     if (r == -1){
         int error = get_error();
-        std::string error_message = std::string("error code -> ");
+        std::string error_message = string("error code -> ");
         error_message += error;
         throw error_message;
     }
@@ -126,7 +127,7 @@ int recv_data(SOCKET socket, char* buffer, size_t buffer_limit) {
     int size = (int)::recv(socket, buffer, buffer_limit, 0);
     if (size == -1){
         int error = get_error();
-        std::string error_message = std::string("error code -> ");
+        std::string error_message = string("error code -> ");
         error_message += error;
         throw error_message;
     }
@@ -142,15 +143,16 @@ char* to_framedata3byte(char *p, int &n){
     return p;
 }
 
-void http2_main(SOCKET _socket)
+void http2_main(SOCKET _socket, string hostname, string query)
 {
     int result;
+    char* p;
     //------------------------------------------------------------
     // HTTP2の準備.
     // SSLでない場合は、下記の24オクテットのデータを送信することで、
     // これからHTTP2通信を始めることを伝える.
     //------------------------------------------------------------
-    std::string pri = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
+    string pri = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
     send_data(_socket, pri.c_str(), pri.length());
 
     //------------------------------------------------------------
@@ -226,7 +228,6 @@ void http2_main(SOCKET _socket)
     // SETTINGS_MAX_HEADER_LIST_SIZE (0x6)   初期値は無制限
     //------------------------------------------------------------
     const char settingframe[BINARY_FRAME_LENGTH] = { 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00 };
-
     send_data(_socket, settingframe, BINARY_FRAME_LENGTH);
 
 
@@ -234,7 +235,7 @@ void http2_main(SOCKET _socket)
     // Settingフレームの受信.
     //------------------------------------------------------------
     char buf[BUF_SIZE] = { 0 };
-    char* p = buf;
+    p = buf;
 
     result = recv_data(_socket, p, READ_BUF_SIZE);
 
@@ -267,7 +268,7 @@ void http2_main(SOCKET _socket)
     //
     //
     // ●HTTP1.1でのセマンティクス
-    // 　　"GET / HTTP1/1"
+    // 　　"GET / HTTP/1.1"
     // 　　"Host: nghttp2.org
     //
     // ●HTTP2でのセマンティクス
@@ -305,9 +306,13 @@ void http2_main(SOCKET _socket)
         0x0a, 0x3a, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74, 0x79,      // 10 :authority
         0x0b, 0x6e, 0x67, 0x68, 0x74, 0x74, 0x70, 0x32, 0x2e, 0x6f, 0x72, 0x67   // 11 nghttp2.org
     };
+    int headersFrameSize = 9 + 1 + 8 + 4 + 1 + 6 + (1 + query.length()) + 1 + 8 + 5 + 1 + 11 + (1 + hostname.length());
+    char* headersframeData = (char *)malloc(sizeof(char) * headersFrameSize);
+    printf("headersFrameSize=%d\n", headersFrameSize);
 
     send_data(_socket, headersframe, 69);
 
+    delete headersframeData;
 
     //------------------------------------------------------------
     // HEADERSフレームの受信.
@@ -317,7 +322,6 @@ void http2_main(SOCKET _socket)
 
     // まずはヘッダフレームを受信してpayloadのlengthを取得する。
     while (1){
-
         memset(buf, 0x00, BINARY_FRAME_LENGTH);
         p = buf;
 
@@ -326,8 +330,7 @@ void http2_main(SOCKET _socket)
         // ACKが返ってくる場合があるのでACKなら無視して次を読む。
         if (memcmp(buf, settingframeAck, BINARY_FRAME_LENGTH) == 0){
             continue;
-        }
-        else{
+        } else{
 
             // payloadの長さを取得する。
             p = to_framedata3byte(p, payload_length);
