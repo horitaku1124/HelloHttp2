@@ -1,7 +1,8 @@
 C++ := g++
 
-hellohttp2:
+all: hellohttp2	h2client
 
+h2client:
 
 clean:
-	$(RM) hellohttp2
+	$(RM) hellohttp2 h2client
