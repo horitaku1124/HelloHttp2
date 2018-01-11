@@ -40,43 +40,42 @@ void http2_main(SOCKET _socket);
 int main(int argc, char **argv)
 {
 
-	//------------------------------------------------------------
-	// 接続先ホスト名.
-	// HTTP2に対応したホストを指定します.
-	//------------------------------------------------------------
-	std::string host = "nghttp2.org";
+    //------------------------------------------------------------
+    // 接続先ホスト名.
+    // HTTP2に対応したホストを指定します.
+    //------------------------------------------------------------
+    std::string host = "nghttp2.org";
 
-
-	//------------------------------------------------------------
-	// TCPの準備.
-	//------------------------------------------------------------
+    //------------------------------------------------------------
+    // TCPの準備.
+    //------------------------------------------------------------
 #ifdef WIN32
-	WSADATA wsaData;
-	// WinSock?I‰?u‰≫.
-	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-		return 0;
-	}
+    WSADATA wsaData;
+    // WinSock?I‰?u‰≫.
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        return 0;
+    }
 #endif
 
-	int error = 0;
-	struct hostent *hp;
-	struct sockaddr_in addr;
-	SOCKET _socket;
+    int error = 0;
+    struct hostent *hp;
+    struct sockaddr_in addr;
+    SOCKET _socket;
 
-	if (!(hp = gethostbyname(host.c_str()))){
-		return -1;
-	}
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_addr = *(struct in_addr*)hp->h_addr_list[0];
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(PORT);
+    if (!(hp = gethostbyname(host.c_str()))){
+        return -1;
+    }
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_addr = *(struct in_addr*)hp->h_addr_list[0];
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(PORT);
 
-	if ((_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP))<0){
-		return -1;
-	}
-	if (connect(_socket, (struct sockaddr *)&addr, sizeof(addr))<0){
-		return -1;
-	}
+    if ((_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP))<0){
+        return -1;
+    }
+    if (connect(_socket, (struct sockaddr *)&addr, sizeof(addr))<0){
+        return -1;
+    }
 
     try {
         http2_main(_socket);
@@ -87,39 +86,39 @@ int main(int argc, char **argv)
         return 1;
     }
 
-	//------------------------------------------------------------
-	// 後始末.
-	//------------------------------------------------------------
-	::shutdown(_socket, SD_BOTH);
-	close_socket(_socket);
+    //------------------------------------------------------------
+    // 後始末.
+    //------------------------------------------------------------
+    ::shutdown(_socket, SD_BOTH);
+    close_socket(_socket);
 
-	return 0;
+    return 0;
 }
 
 void close_socket(SOCKET socket){
 #ifdef WIN32
-	::closesocket(socket);
-	WSACleanup();
+    ::closesocket(socket);
+    WSACleanup();
 #else
-	::close(socket);
+    ::close(socket);
 #endif
 }
 
 int get_error(){
 #ifdef WIN32
-	return WSAGetLastError();
+    return WSAGetLastError();
 #endif
-	return errno;
+    return errno;
 }
 
 int send_data(SOCKET socket, const char* data, size_t data_size) {
-	int r = (int)::send(socket, data, data_size, 0);
-	if (r == -1){
-		int error = get_error();
+    int r = (int)::send(socket, data, data_size, 0);
+    if (r == -1){
+        int error = get_error();
         std::string error_message = std::string("error code -> ");
         error_message += error;
         throw error_message;
-	}
+    }
     return 0;
 }
 
@@ -135,12 +134,12 @@ int recv_data(SOCKET socket, char* buffer, size_t buffer_limit) {
 }
 
 char* to_framedata3byte(char *p, int &n){
-	u_char buf[4] = { 0 };
-	memcpy(&(buf[1]), p, 3);
-	memcpy(&n, buf, 4);
-	n = ntohl(n);
-	p += 3;
-	return p;
+    u_char buf[4] = { 0 };
+    memcpy(&(buf[1]), p, 3);
+    memcpy(&n, buf, 4);
+    n = ntohl(n);
+    p += 3;
+    return p;
 }
 
 void http2_main(SOCKET _socket)
