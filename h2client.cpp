@@ -19,6 +19,7 @@
 #define SD_BOTH SHUT_WR
 #endif
 
+#include "h2spec.h"
 
 #define READ_BUF_SIZE 4096
 #define BUF_SIZE 4097
