@@ -11,6 +11,6 @@ const char headersframeDefault[13][12] = {
     {0x07, ':', 's', 'c', 'h', 'e', 'm', 'e'},              // 7 Byte :scheme
     {0x04, 'h', 't', 't', 'p'},                             // 4 Byte http
     {0x00},                                                 // 圧縮情報
-    {0x0a, 0x3a, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74, 0x79},      // 10 :authority
-    {0x0b, 0x6e, 0x67, 0x68, 0x74, 0x74, 0x70, 0x32, 0x2e, 0x6f, 0x72, 0x67}  // 11 nghttp2.org
+    {0x0a, ':', "a", 'u', 't', 'h', 'o', 'r', 'i', 't', 'y'},      // 10 :authority
+    {0x0b, 'n', 'g', 'h', 't', 't', 'p', '2', '.', 'o', 'r', 'g'}  // 11 nghttp2.org
 };
