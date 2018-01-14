@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string>
+#include <cstring>
 
 #ifdef WIN32
 #include <winsock2.h>
@@ -25,6 +26,17 @@
 #define BUF_SIZE 4097
 #define PORT 80
 #define BINARY_FRAME_LENGTH 9
+
+#define pushPresetHeader(PTR, NUMBER, LENGTH) \
+    memcpy(PTR, headersframeDefault[NUMBER], LENGTH); \
+    PTR += LENGTH;
+
+#define pushInputHeader(PTR, STR, LENGTH) \
+    *PTR = LENGTH; \
+    PTR += 1; \
+    memcpy(PTR, STR, LENGTH);\
+    PTR += LENGTH;
+
 
 
 // 3バイトのネットワークオーダーを4バイト整数へ変換する関数.
@@ -80,7 +92,8 @@ int main(int argc, char **argv)
     }
 
     try {
-        http2_main(_socket, host, string("/"));
+        // HTTP/2の処理は全てここで行う
+        http2_main(_socket, host, string("/httpbin/"));
     } catch(string e) {
         fprintf(stderr, "Error => %s", e.c_str());
         ::shutdown(_socket, SD_BOTH);
@@ -292,26 +305,39 @@ void http2_main(SOCKET _socket, string hostname, string query)
     // 上記が一つのヘッダフィールドの記述例で、ヘッダーフィールドの数だけこれを繰り返す.
     //
     //------------------------------------------------------------
-    const char headersframe[69] = {
-        0x00, 0x00, 0x3c, 0x01, 0x04, 0x00, 0x00, 0x00, 0x01,  // ヘッダフレーム
-        0x00,                                                  // 圧縮情報
-        0x07, 0x3a, 0x6d, 0x65, 0x74, 0x68, 0x6f, 0x64,        // 7 :method
-        0x03, 0x47, 0x45, 0x54,                                // 3 GET
-        0x00,                                                  // 圧縮情報
-        0x05, 0x3a, 0x70, 0x61, 0x74, 0x68,                    // 5 :path
-        0x01, 0x2f,                                            // 1 /
-        0x00,                                                  // 圧縮情報
-        0x07, 0x3a, 0x73, 0x63, 0x68, 0x65, 0x6d, 0x65,        // 7 :scheme
-        0x04, 0x68, 0x74, 0x74, 0x70,                          // 4 http
-        0x00,                                                  // 圧縮情報
-        0x0a, 0x3a, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74, 0x79,      // 10 :authority
-        0x0b, 0x6e, 0x67, 0x68, 0x74, 0x74, 0x70, 0x32, 0x2e, 0x6f, 0x72, 0x67   // 11 nghttp2.org
-    };
-    int headersFrameSize = 9 + 1 + 8 + 4 + 1 + 6 + (1 + query.length()) + 1 + 8 + 5 + 1 + 11 + (1 + hostname.length());
-    char* headersframeData = (char *)malloc(sizeof(char) * headersFrameSize);
-    printf("headersFrameSize=%d\n", headersFrameSize);
 
-    send_data(_socket, headersframe, 69);
+    int payloadSize = 1 + 8 + 4 + 1 + 6 + (1 + query.length()) + 1 + 8 + 5 + 1 + 11 + (1 + hostname.length());
+    int headersFrameSize = payloadSize + HttpFrameHeaderSize;
+    char* headersframeData = (char *)malloc(sizeof(char) * headersFrameSize);
+
+    char* headersframeDataPtr = headersframeData;
+    memcpy(headersframeDataPtr, headersframeDefault[0], HttpFrameHeaderSize);
+    headersframeDataPtr[2] = payloadSize;
+    headersframeDataPtr += HttpFrameHeaderSize;
+
+    pushPresetHeader(headersframeDataPtr, 1, 1);
+    pushPresetHeader(headersframeDataPtr, 2, 8);
+    pushPresetHeader(headersframeDataPtr, 3, 4);
+    pushPresetHeader(headersframeDataPtr, 4, 1);
+    pushPresetHeader(headersframeDataPtr, 5, 6);
+    pushInputHeader(headersframeDataPtr, query.c_str(), query.length());
+    pushPresetHeader(headersframeDataPtr, 7, 1);
+    pushPresetHeader(headersframeDataPtr, 8, 8);
+    pushPresetHeader(headersframeDataPtr, 9, 5);
+    pushPresetHeader(headersframeDataPtr, 10, 1);
+    pushPresetHeader(headersframeDataPtr, 11, 11);
+    pushInputHeader(headersframeDataPtr, hostname.c_str(), hostname.length());
+
+    printf("headersFrameSize=%d\n", headersFrameSize);
+    for (int i = 0;i < headersFrameSize;i++) {
+        printf("%02x ", (unsigned int)(headersframeData[i] & 0xff));
+        if (i % 16 == 15) {
+            printf("\n");
+        }
+    }
+    printf("\n");
+
+    send_data(_socket, headersframeData, headersFrameSize);
 
     delete headersframeData;
 
