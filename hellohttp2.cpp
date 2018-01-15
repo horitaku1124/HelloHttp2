@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string>
+#include <cstring>
 
 #ifdef WIN32
 #include <winsock2.h>
