@@ -58,7 +58,43 @@ int main(int argc, char **argv)
     // 接続先ホスト名.
     // HTTP2に対応したホストを指定します.
     //------------------------------------------------------------
-    string host = "nghttp2.org";
+
+    string url;
+
+    if (argc > 1) {
+        url = string(argv[1]);
+    } else {
+        fprintf(stderr, "No argument\n");
+        return 1;
+    }
+
+    string restOfUrl = url;
+    if (url.find("http://") == 0) {
+        restOfUrl = restOfUrl.substr(7, -1);
+    } else if (url.find("https://") == 0) {
+        restOfUrl = restOfUrl.substr(8, -1);
+    } else {
+        fprintf(stderr, "http or https reuqired\n");
+        return 1;
+    }
+
+    string host, path;
+    int hostOffset = restOfUrl.find("/");
+    int port = PORT;
+    if (hostOffset > 0) {
+        string hostAndPort = restOfUrl.substr(0, hostOffset);
+        int portOffset = hostAndPort.find(":");
+        host = hostAndPort;
+        if (portOffset > 0) {
+            host = host.substr(0, portOffset);
+            string portS = hostAndPort.substr(portOffset + 1, -1);
+            port = atoi(portS.c_str());
+        }
+        restOfUrl = restOfUrl.substr(hostOffset, -1);
+        path = restOfUrl;
+    }
+    printf("host=%s , port=%d , path=%s\n", host.c_str(), port, path.c_str());
+
 
     //------------------------------------------------------------
     // TCPの準備.
@@ -93,7 +129,7 @@ int main(int argc, char **argv)
 
     try {
         // HTTP/2の処理は全てここで行う
-        http2_main(_socket, host, string("/httpbin/"));
+        http2_main(_socket, host, string(path));
     } catch(string e) {
         fprintf(stderr, "Error => %s", e.c_str());
         ::shutdown(_socket, SD_BOTH);
@@ -347,12 +383,22 @@ void http2_main(SOCKET _socket, string hostname, string query)
     int payload_length = 0;
     int frame_type = 0;
 
+    printf("Receiving HEADERS frame\n");
     // まずはヘッダフレームを受信してpayloadのlengthを取得する。
     while (1){
         memset(buf, 0x00, BINARY_FRAME_LENGTH);
         p = buf;
 
         result = recv_data(_socket, p, BINARY_FRAME_LENGTH);
+
+        printf("result => %d ", result);
+        for (int i = 0;i < result;i++) {
+            printf("%02x ", (unsigned int)(p[i] & 0xff));
+            if (i % 16 == 15) {
+                printf("\n");
+            }
+        }
+        printf("\n");
 
         // ACKが返ってくる場合があるのでACKなら無視して次を読む。
         if (memcmp(buf, settingframeAck, BINARY_FRAME_LENGTH) == 0){
